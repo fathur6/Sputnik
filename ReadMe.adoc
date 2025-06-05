@@ -1,58 +1,63 @@
-:Author: fathur6
-:Email:
-:Date: 31/05/2025
-:Revision: version#
-:License: Public Domain
+📡 Sputnik — ESP32U Portable MCU Kit
+Sputnik is a compact, field-ready microcontroller unit built with the ESP32U (with external antenna), designed for rapid deployment, testing, and prototyping of IoT-based environmental monitoring applications. It is ideal for validating sketches, verifying cloud uplink/downlink functionality, and testing WiFi connectivity — all in a tidy, battery-powered form.
 
-= Project: {Project}
+🧰 Features
+ESP32U microcontroller with external antenna (stronger signal gain)
 
-Describe your project
+LiPo battery powered with onboard USB charging module (TP4056)
 
-== Step 1: Installation
-Please describe the steps to install this project.
+OLED screen (I2C) for local display of system status or sensor data
 
-For example:
+DHT sensor (AM2301/DHT21) for humidity and temperature sensing
 
-1. Open this file
-2. Edit as you like
-3. Release to the World!
+Power switch for easy on/off control
 
-== Step 2: Assemble the circuit
+Modular extension capability for additional sensors or relays
 
-Assemble the circuit following the diagram layout.png attached to the sketch
+Accessible USB port for firmware flashing or serial debugging
 
-== Step 3: Load the code
+🧪 Use Cases
+Upload and test Arduino sketches directly in the field
 
-Upload the code contained in this sketch on to your board
+Verify WiFi accessibility and cloud dashboard (e.g., Arduino Cloud)
 
-=== Folder structure
+Test HTTP/HTTPS POST requests to Google Apps Script or APIs
 
-....
- sketch123                => Arduino sketch folder
-  ├── sketch123.ino       => main Arduino file
-  ├── schematics.png      => (optional) an image of the required schematics
-  ├── layout.png          => (optional) an image of the layout
-  └── ReadMe.adoc         => this file
-....
+Display live sensor values on OLED
 
-=== License
-This project is released under a {License} License.
+Evaluate sensor performance over time
 
-=== Contributing
-To contribute to this project please contact: 
+Train students or researchers on IoT data collection
 
-=== BOM
-Add the bill of the materials you need for this project.
+📦 Included Modules
+Component	Purpose
+ESP32U Dev Board	Main MCU + WiFi + BLE
+OLED Display	Visual feedback
+DHT Sensor	Environmental sensing
+TP4056 Module	Battery charging
+18650 Battery	Portable power
+Switch	On/off control
 
-|===
-| ID | Part name      | Part number | Quantity
-| R1 | 10k Resistor   | 1234-abcd   | 10       
-| L1 | Red LED        | 2345-asdf   | 5        
-| A1 | Arduino Zero   | ABX00066    | 1        
-|===
+🔧 Getting Started
+Install dependencies: DHT.h, Adafruit_Sensor.h, Wire.h, SSD1306.h (if used).
 
+Flash a sketch using Arduino IDE or PlatformIO.
 
-=== Help
-This document is written in the _AsciiDoc_ format, a markup language to describe documents. 
-If you need help you can search the http://www.methods.co.nz/asciidoc[AsciiDoc homepage]
-or consult the http://powerman.name/doc/asciidoc[AsciiDoc cheatsheet]
+Power via USB or battery and monitor the serial output.
+
+📡 Future Plans
+Add Grove connector support
+
+Integrate real-time clock (RTC) for time-based operations
+
+Deploy OTA update support
+
+Expand pinout breakout for plug-and-play sensors
+
+🧪 Example Sketches
+WiFi Check + OLED Status
+
+DHT Sensor + Serial Monitor
+
+Google Sheet POST Logger
+
