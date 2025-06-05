@@ -1,58 +1,65 @@
-:Author: fathur6
-:Email:
-:Date: 31/05/2025
-:Revision: version#
-:License: Public Domain
+= Sputnik IoT Sensor Module (feat: WiFiManager Fallback + 15-Minute Averaged POST)
+Fathurrahman Lananan <fathur6@github>
+:icons: font
+:toc: macro
+:toc-title: 📑 Table of Contents
 
-= Project: {Project}
+image::https://img.shields.io/badge/Platform-ESP32-green.svg[ESP32]
+image::https://img.shields.io/badge/Arduino%20Cloud-Compatible-blue.svg[IoT Cloud]
+image::https://img.shields.io/badge/POST-Google%20Sheets-yellow.svg[POST Sheets]
 
-Describe your project
+== 📦 Overview
 
-== Step 1: Installation
-Please describe the steps to install this project.
+*Sputnik* is a portable ESP32-based IoT MCU designed for:
 
-For example:
+- Rapid prototyping of environmental data logging
+- Seamless Wi-Fi management with captive fallback
+- Posting 15-minute averaged temperature and humidity data to Google Sheets
+- Cloud-based live monitoring via Arduino IoT Cloud
 
-1. Open this file
-2. Edit as you like
-3. Release to the World!
+This branch adds a **WiFiManager Soft-AP fallback**: if saved Wi-Fi fails, it starts a configuration portal named `Sputnik-Setup` (`password: sputnik123`) for field deployment convenience.
 
-== Step 2: Assemble the circuit
+== ⚙️ Key Features
 
-Assemble the circuit following the diagram layout.png attached to the sketch
+- ✅ Auto-connect to saved Wi-Fi or launch Soft-AP setup
+- 🌡️ Reads DHT21 (AM2301) sensor every minute
+- 🧠 Buffers 15 readings and averages them
+- ☁️ Sends JSON data to Google Apps Script every 15 minutes
+- 🌍 Maintains live sync with Arduino IoT Cloud
+- 🕒 NTP time sync to GMT+8
 
-== Step 3: Load the code
+== 🔧 Board & Library Requirements
 
-Upload the code contained in this sketch on to your board
+- Board: `ESP32` (via Espressif board manager)
+- Libraries:
+  - `WiFiManager` → https://github.com/tzapu/WiFiManager
+  - `DHT sensor library` → https://github.com/adafruit/DHT-sensor-library
+  - `ArduinoIoTCloud` (auto-generated)
+  - `HTTPClient` (built-in with ESP32 core)
 
-=== Folder structure
+== 🧪 Hardware Wiring
 
-....
- sketch123                => Arduino sketch folder
-  ├── sketch123.ino       => main Arduino file
-  ├── schematics.png      => (optional) an image of the required schematics
-  ├── layout.png          => (optional) an image of the layout
-  └── ReadMe.adoc         => this file
-....
+- DHT21 Data → GPIO 15
+- VCC → 3.3V
+- GND → GND
 
-=== License
-This project is released under a {License} License.
+== 📤 Data Endpoint
 
-=== Contributing
-To contribute to this project please contact: 
+POST data as JSON to Google Sheets via:
+[source,json]
+----
+{
+  "temperature": 29.00,
+  "humidity": 59.40,
+  "mcu": "sputnik1"
+}
+----
 
-=== BOM
-Add the bill of the materials you need for this project.
+== 🗂️ Files
 
-|===
-| ID | Part name      | Part number | Quantity
-| R1 | 10k Resistor   | 1234-abcd   | 10       
-| L1 | Red LED        | 2345-asdf   | 5        
-| A1 | Arduino Zero   | ABX00066    | 1        
-|===
+- `sputnik.ino` → Main sketch (Soft-AP fallback + POST)
+- `arduino_secrets.h` → Wi-Fi/device keys (auto-generated)
+- `thingProperties.h` → Arduino IoT Cloud variable link (auto-generated)
 
+== 💡 Example Serial Output
 
-=== Help
-This document is written in the _AsciiDoc_ format, a markup language to describe documents. 
-If you need help you can search the http://www.methods.co.nz/asciidoc[AsciiDoc homepage]
-or consult the http://powerman.name/doc/asciidoc[AsciiDoc cheatsheet]
