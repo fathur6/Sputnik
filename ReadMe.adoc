@@ -1,65 +1,49 @@
-= Sputnik IoT Sensor Module (feat: WiFiManager Fallback + 15-Minute Averaged POST)
-Fathurrahman Lananan <fathur6@github>
-:icons: font
-:toc: macro
-:toc-title: 📑 Table of Contents
+= Sputnik IoT Sensor Module – HTTPS + NTP Fallback + Buffer Validation (feat--https-secure-ntp-buffer)
+Fathurrahman Lananan (Aman)
+v2025-06-05
 
-image::https://img.shields.io/badge/Platform-ESP32-green.svg[ESP32]
-image::https://img.shields.io/badge/Arduino%20Cloud-Compatible-blue.svg[IoT Cloud]
-image::https://img.shields.io/badge/POST-Google%20Sheets-yellow.svg[POST Sheets]
+A feature-extended sketch of the Sputnik IoT system with support for:
+- **Secure HTTPS POST** to Google Sheets via `WiFiClientSecure`
+- **Fallback logic** using `millis()` for data sampling when NTP is unavailable
+- **Buffered data validation** with range checks and recovery for faulty sensor readings
 
-== 📦 Overview
+== Overview
 
-*Sputnik* is a portable ESP32-based IoT MCU designed for:
+This version builds upon the original `sputnik.ino` with robust improvements for field deployment. It collects temperature and humidity readings from a DHT21 sensor every minute, buffers them, and posts **15-minute averaged** values to a Google Sheets endpoint securely over HTTPS.
 
-- Rapid prototyping of environmental data logging
-- Seamless Wi-Fi management with captive fallback
-- Posting 15-minute averaged temperature and humidity data to Google Sheets
-- Cloud-based live monitoring via Arduino IoT Cloud
+== Key Features
 
-This branch adds a **WiFiManager Soft-AP fallback**: if saved Wi-Fi fails, it starts a configuration portal named `Sputnik-Setup` (`password: sputnik123`) for field deployment convenience.
+- ✅ Soft-AP fallback via **WiFiManager**
+- ✅ HTTPS-enabled **Google Sheets POST** with `WiFiClientSecure`
+- ✅ Enhanced **NTP sync** with retry logic and fallback to internal `millis()` timing
+- ✅ Buffer-based **range validation** of temperature and humidity (DHT21 sanity checks)
+- ✅ Supports **Arduino IoT Cloud** for real-time updates of `dhtTemp` and `dhtHumi`
+- ✅ Auto-clears buffer after successful POST, or retains on failure for retry
 
-== ⚙️ Key Features
+== Hardware
 
-- ✅ Auto-connect to saved Wi-Fi or launch Soft-AP setup
-- 🌡️ Reads DHT21 (AM2301) sensor every minute
-- 🧠 Buffers 15 readings and averages them
-- ☁️ Sends JSON data to Google Apps Script every 15 minutes
-- 🌍 Maintains live sync with Arduino IoT Cloud
-- 🕒 NTP time sync to GMT+8
+- MCU: ESP32 (Tested on ESP32 Dev Module with external antenna)
+- Sensor: DHT21 / AM2301 (Data line on GPIO 15)
 
-== 🔧 Board & Library Requirements
+== Required Libraries
 
-- Board: `ESP32` (via Espressif board manager)
-- Libraries:
-  - `WiFiManager` → https://github.com/tzapu/WiFiManager
-  - `DHT sensor library` → https://github.com/adafruit/DHT-sensor-library
-  - `ArduinoIoTCloud` (auto-generated)
-  - `HTTPClient` (built-in with ESP32 core)
+- https://github.com/tzapu/WiFiManager[WiFiManager]
+- https://github.com/adafruit/DHT-sensor-library[Adafruit DHT Sensor Library]
+- `WiFiClientSecure` and `HTTPClient` (ESP32 core built-in)
+- Arduino IoT Cloud SDK (`thingProperties.h`, `arduino_secrets.h`)
 
-== 🧪 Hardware Wiring
+== Cloud Integration
 
-- DHT21 Data → GPIO 15
-- VCC → 3.3V
-- GND → GND
+To enable `dhtTemp` and `dhtHumi` live updates:
+1. Define these variables in the Arduino IoT Cloud dashboard
+2. Ensure `SECRET_SSID` and `SECRET_OPTIONAL_PASS` in `arduino_secrets.h` match the WiFiManager-selected SSID
 
-== 📤 Data Endpoint
+== Data POST
 
-POST data as JSON to Google Sheets via:
-[source,json]
-----
+Payload format sent to Google Sheets every 15 minutes:
+```json
 {
-  "temperature": 29.00,
-  "humidity": 59.40,
+  "temperature": 28.75,
+  "humidity": 64.00,
   "mcu": "sputnik1"
 }
-----
-
-== 🗂️ Files
-
-- `sputnik.ino` → Main sketch (Soft-AP fallback + POST)
-- `arduino_secrets.h` → Wi-Fi/device keys (auto-generated)
-- `thingProperties.h` → Arduino IoT Cloud variable link (auto-generated)
-
-== 💡 Example Serial Output
-
