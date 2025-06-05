@@ -1,63 +1,73 @@
-📡 Sputnik — ESP32U Portable MCU Kit
-Sputnik is a compact, field-ready microcontroller unit built with the ESP32U (with external antenna), designed for rapid deployment, testing, and prototyping of IoT-based environmental monitoring applications. It is ideal for validating sketches, verifying cloud uplink/downlink functionality, and testing WiFi connectivity — all in a tidy, battery-powered form.
+# 📡 Sputnik – ESP32U Portable MCU Kit
 
-🧰 Features
-ESP32U microcontroller with external antenna (stronger signal gain)
+**Sputnik** is a compact and modular ESP32-based microcontroller system equipped with a LiPo battery, OLED screen, and essential IoT components. Housed in a neat container, Sputnik is ideal for quick sketch testing, WiFi diagnostics, and remote deployment for cloud-based applications like Arduino IoT Cloud or Google Sheets logging.
 
-LiPo battery powered with onboard USB charging module (TP4056)
+---
 
-OLED screen (I2C) for local display of system status or sensor data
+## 🧰 Features
 
-DHT sensor (AM2301/DHT21) for humidity and temperature sensing
+- 🔧 **ESP32U Dev Board** with external antenna for stronger signal
+- 🔋 **LiPo-powered** via 18650 battery with TP4056 charging circuit
+- 🌡️ **DHT sensor** (temperature + humidity)
+- 📺 **OLED screen** (I2C) for data display
+- 🔌 **Accessible USB** for programming and debugging
+- 🧪 **Expandable** — add more sensors or modules easily
+- 🔁 Supports both **uplink/downlink** testing and cloud comms
 
-Power switch for easy on/off control
+---
 
-Modular extension capability for additional sensors or relays
+## 🧪 Use Cases
 
-Accessible USB port for firmware flashing or serial debugging
+- Rapid field testing for Arduino sketches
+- Verifying WiFi connectivity in low-signal areas
+- Sending data to Google Sheets or RESTful endpoints
+- Local monitoring with OLED
+- Ideal for student labs and prototype development
 
-🧪 Use Cases
-Upload and test Arduino sketches directly in the field
+---
 
-Verify WiFi accessibility and cloud dashboard (e.g., Arduino Cloud)
+## 📦 Components
 
-Test HTTP/HTTPS POST requests to Google Apps Script or APIs
+| Component       | Description                     |
+|----------------|---------------------------------|
+| ESP32U Dev Board | External antenna version       |
+| OLED Display     | I2C interface, 0.96"           |
+| DHT Sensor       | DHT11 or DHT22 supported       |
+| TP4056 Module    | Li-ion battery charger         |
+| 18650 Battery    | Removable, rechargeable power  |
+| Slide Switch     | Main power on/off              |
+| ABS Box          | Transparent enclosure          |
 
-Display live sensor values on OLED
+---
 
-Evaluate sensor performance over time
+## 🚀 Getting Started
 
-Train students or researchers on IoT data collection
+1. Clone the repository and open `.ino` sketch in Arduino IDE.
+2. Install required libraries:
+   - `DHT sensor library`
+   - `Adafruit Unified Sensor`
+   - `OneWire` and `DallasTemperature` (if using DS18B20)
+   - `Adafruit SSD1306` (if using OLED)
+3. Upload to ESP32U and power via USB or battery.
+4. Use Serial Monitor to view logs.
 
-📦 Included Modules
-Component	Purpose
-ESP32U Dev Board	Main MCU + WiFi + BLE
-OLED Display	Visual feedback
-DHT Sensor	Environmental sensing
-TP4056 Module	Battery charging
-18650 Battery	Portable power
-Switch	On/off control
+---
 
-🔧 Getting Started
-Install dependencies: DHT.h, Adafruit_Sensor.h, Wire.h, SSD1306.h (if used).
+## 📸 Device Preview
 
-Flash a sketch using Arduino IDE or PlatformIO.
+| Closed | Internal View |
+|--------|---------------|
+| ![Boxed View](docs/sputnik-closed.jpg) | ![Inside View](docs/sputnik-open.jpg) |
 
-Power via USB or battery and monitor the serial output.
+---
 
-📡 Future Plans
-Add Grove connector support
+## 🧑‍🔬 Maintainer
 
-Integrate real-time clock (RTC) for time-based operations
+Developed by **Aman & Anna** under the **DAFCON Initiative** for advancing smart agricultural & environmental IoT solutions.
 
-Deploy OTA update support
+---
 
-Expand pinout breakout for plug-and-play sensors
+## 🗂️ License
 
-🧪 Example Sketches
-WiFi Check + OLED Status
-
-DHT Sensor + Serial Monitor
-
-Google Sheet POST Logger
+MIT – feel free to modify and adapt for your own IoT adventures 🚀
 
