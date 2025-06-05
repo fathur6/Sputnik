@@ -1,58 +1,73 @@
-:Author: fathur6
-:Email:
-:Date: 31/05/2025
-:Revision: version#
-:License: Public Domain
+# 📡 Sputnik – ESP32U Portable MCU Kit
 
-= Project: {Project}
+**Sputnik** is a compact and modular ESP32-based microcontroller system equipped with a LiPo battery, OLED screen, and essential IoT components. Housed in a neat container, Sputnik is ideal for quick sketch testing, WiFi diagnostics, and remote deployment for cloud-based applications like Arduino IoT Cloud or Google Sheets logging.
 
-Describe your project
+---
 
-== Step 1: Installation
-Please describe the steps to install this project.
+## 🧰 Features
 
-For example:
+- 🔧 **ESP32U Dev Board** with external antenna for stronger signal
+- 🔋 **LiPo-powered** via 18650 battery with TP4056 charging circuit
+- 🌡️ **DHT sensor** (temperature + humidity)
+- 📺 **OLED screen** (I2C) for data display
+- 🔌 **Accessible USB** for programming and debugging
+- 🧪 **Expandable** — add more sensors or modules easily
+- 🔁 Supports both **uplink/downlink** testing and cloud comms
 
-1. Open this file
-2. Edit as you like
-3. Release to the World!
+---
 
-== Step 2: Assemble the circuit
+## 🧪 Use Cases
 
-Assemble the circuit following the diagram layout.png attached to the sketch
+- Rapid field testing for Arduino sketches
+- Verifying WiFi connectivity in low-signal areas
+- Sending data to Google Sheets or RESTful endpoints
+- Local monitoring with OLED
+- Ideal for student labs and prototype development
 
-== Step 3: Load the code
+---
 
-Upload the code contained in this sketch on to your board
+## 📦 Components
 
-=== Folder structure
+| Component       | Description                     |
+|----------------|---------------------------------|
+| ESP32U Dev Board | External antenna version       |
+| OLED Display     | I2C interface, 0.96"           |
+| DHT Sensor       | DHT11 or DHT22 supported       |
+| TP4056 Module    | Li-ion battery charger         |
+| 18650 Battery    | Removable, rechargeable power  |
+| Slide Switch     | Main power on/off              |
+| ABS Box          | Transparent enclosure          |
 
-....
- sketch123                => Arduino sketch folder
-  ├── sketch123.ino       => main Arduino file
-  ├── schematics.png      => (optional) an image of the required schematics
-  ├── layout.png          => (optional) an image of the layout
-  └── ReadMe.adoc         => this file
-....
+---
 
-=== License
-This project is released under a {License} License.
+## 🚀 Getting Started
 
-=== Contributing
-To contribute to this project please contact: 
+1. Clone the repository and open `.ino` sketch in Arduino IDE.
+2. Install required libraries:
+   - `DHT sensor library`
+   - `Adafruit Unified Sensor`
+   - `OneWire` and `DallasTemperature` (if using DS18B20)
+   - `Adafruit SSD1306` (if using OLED)
+3. Upload to ESP32U and power via USB or battery.
+4. Use Serial Monitor to view logs.
 
-=== BOM
-Add the bill of the materials you need for this project.
+---
 
-|===
-| ID | Part name      | Part number | Quantity
-| R1 | 10k Resistor   | 1234-abcd   | 10       
-| L1 | Red LED        | 2345-asdf   | 5        
-| A1 | Arduino Zero   | ABX00066    | 1        
-|===
+## 📸 Device Preview
 
+| Closed | Internal View |
+|--------|---------------|
+| ![Boxed View](docs/sputnik-closed.jpg) | ![Inside View](docs/sputnik-open.jpg) |
 
-=== Help
-This document is written in the _AsciiDoc_ format, a markup language to describe documents. 
-If you need help you can search the http://www.methods.co.nz/asciidoc[AsciiDoc homepage]
-or consult the http://powerman.name/doc/asciidoc[AsciiDoc cheatsheet]
+---
+
+## 🧑‍🔬 Maintainer
+
+Developed by **Aman & Anna** under the **DAFCON Initiative** for advancing smart agricultural & environmental IoT solutions.
+
+---
+
+## 🗂️ License
+
+MIT – feel free to modify and adapt for your own IoT adventures 🚀
+
