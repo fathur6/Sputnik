@@ -1,14 +1,25 @@
 /*
   ==============================================================================================================================================
-  Project: sputnik IoT Sensor Module – WiFi‑Manager Soft‑AP Fallback PLUS 15‑Minute Averaged Google Sheets POST with NTP Fallback (GMT+8)
+  Project: sputnik IoT Sensor Module – WiFi-Manager Soft-AP Fallback PLUS 15-Minute Averaged Google Sheets POST with NTP Fallback (GMT+8)
 
   Author: Fathurrahman Lananan (Aman)
-  Last Modified: 2025‑06‑05
+  Last Modified: 2025-06-05
 
+  Description:
+  This sketch implements a robust ESP32-based IoT data logger system. It includes:
+  - Soft-AP fallback using WiFiManager for WiFi configuration when no known network is available.
+  - Arduino IoT Cloud integration for real-time temperature and humidity updates every minute.
+  - A 15-minute data averaging routine that samples sensor data every minute, stores up to 15 samples,
+    and at every quarter-hour mark (HH:00, HH:15, HH:30, HH:45), calculates the average of valid readings
+    and posts them to a designated Google Sheets endpoint via HTTPS.
+  - NTP time synchronization for precise scheduling of Google Sheets posts.
+
+  The sketch uses error-checked sampling (ignoring NaN or invalid values) and only transmits valid averaged data.
+  Data is buffered in arrays for temperature and humidity with size 15, and cleared after each successful POST.
+  This ensures robustness in unstable network or sensor conditions.
   ==============================================================================================================================================
 */
 
-// --- Conditional includes for ESP32 (Primary target) ---
 #if defined(ESP32)
   #include <WiFi.h>
   #include <HTTPClient.h>           // For Google Sheets POST
@@ -17,47 +28,35 @@
   #error "Unsupported board: This sketch is optimized for ESP32."
 #endif
 
-#include <WiFiManager.h>             // Soft‑AP captive portal library
+#include <WiFiManager.h>             // Soft-AP captive portal library
 #include "DHT.h"                     // Adafruit DHT sensor library
 #include <time.h>                     // NTP time functions
 #include "thingProperties.h"         // Arduino IoT Cloud: binds dhtTemp/dhtHumi & device credentials
 
 // --- Constants ---
-// Hardware Pins
 const int DHT_PIN             = 15;
-const int DHT_TYPE            = DHT21; // AM2301 sensor type
-
-// WiFiManager SoftAP credentials
+const int DHT_TYPE            = DHT21;
 const char* AP_CONFIG_SSID    = "Sputnik-Setup";
 const char* AP_CONFIG_PASS    = "sputnik123";
+const char* NTP_SERVER_URL    = "pool.ntp.org";
+const long  GMT_OFFSET_SECONDS= 8 * 3600;
+const int   DAYLIGHT_OFFSET   = 0;
+const int   NTP_TIMEOUT_MS    = 7000;
+const int   NTP_RETRY_DELAY   = 500;
+const char* GOOGLE_SHEET_POST_URL = "https://script.google.com/macros/s/AKfycbzcdQJjV7odm73Z5B0zyyVLhqCZZcaRRbypB4TE5a2vXtaNR5nmld4wX6vs4q3KisRfUw/exec";
+const int   HTTP_POST_TIMEOUT_MS  = 10000;
+const int   DATA_BUFFER_SIZE      = 15;
+const int   SAMPLING_INTERVAL_SEC = 60;
+const int   REPORT_INTERVAL_MIN   = 15;
 
-// NTP configuration
-const char* NTP_SERVER_URL           = "pool.ntp.org";
-const long  GMT_OFFSET_SECONDS       = 8 * 3600;    // GMT+8
-const int   DAYLIGHT_OFFSET_SECONDS  = 0;
-const int   NTP_SYNC_TIMEOUT_MS      = 7000;        // 7 s max wait for initial sync
-const int   NTP_RETRY_DELAY_MS       = 500;         // 0.5 s between NTP attempts
-
-// Google Sheets POST configuration
-const char* GOOGLE_SHEET_POST_URL    = "https://script.google.com/macros/s/AKfycbzcdQJjV7odm73Z5B0zyyVLhqCZZcaRRbypB4TE5a2vXtaNR5nmld4wX6vs4q3KisRfUw/exec";
-const int   HTTP_POST_TIMEOUT_MS     = 10000;       // 10 s timeout for HTTP POST
-
-// Data sampling & buffering
-const int DATA_BUFFER_SIZE            = 15;         // 15 samples = 15 minutes
-const int SAMPLING_INTERVAL_SEC       = 60;         // 60 s between samples
-const int REPORTING_INTERVAL_MIN      = 15;         // Post every 15 minutes
-
-// --- Globals ---
 DHT dht(DHT_PIN, DHT_TYPE);
 WiFiManager wifiManager;
-WiFiClientSecure httpsClient;            // Secure HTTP client for Google Sheets POST
-
-unsigned long previousSampleMillis = 0;  // For non‑blocking sampling using millis()
+WiFiClientSecure httpsClient;
+unsigned long previousSampleMillis = 0;
 float temperatureBuffer[DATA_BUFFER_SIZE];
 float humidityBuffer[DATA_BUFFER_SIZE];
-int   bufferIndex            = 0;
+int bufferIndex = 0;
 
-// --- Forward declarations ---
 void initializeDHTSensor();
 void initializeWiFi();
 void initializeNTPTime();
@@ -66,20 +65,16 @@ void collectSensorData();
 void postAveragedDataToGoogleSheet();
 void printLocalTime(const char* prefix = "");
 
-// ==============================================================================================================================================
-// SETUP FUNCTION
-// ==============================================================================================================================================
 void setup() {
   Serial.begin(115200);
   delay(1000);
   Serial.println("\n\n===== Sputnik IoT Module Initializing =====");
 
-  initializeDHTSensor();        
-  initializeWiFi();             
-  initializeNTPTime();          
-  initializeArduinoCloud();    
+  initializeDHTSensor();
+  initializeWiFi();
+  initializeNTPTime();
+  initializeArduinoCloud();
 
-  // Initialize data buffers to NAN
   for (int i = 0; i < DATA_BUFFER_SIZE; ++i) {
     temperatureBuffer[i] = NAN;
     humidityBuffer[i]    = NAN;
@@ -90,102 +85,77 @@ void setup() {
   Serial.printf("Free Heap Post-Setup: %u bytes\n", ESP.getFreeHeap());
 }
 
-// ==============================================================================================================================================
-// MAIN LOOP
-// ==============================================================================================================================================
 void loop() {
-  ArduinoCloud.update(); 
-  yield();  // Feed the watchdog
+  ArduinoCloud.update();
+  yield();
 
   struct tm currentTime;
   bool timeOK = getLocalTime(&currentTime, 200);
   static int lastSecond = -1;
 
   if (!timeOK) {
-    // If NTP not available, fall back to millis-based sampling once per interval
     if (millis() - previousSampleMillis >= (unsigned long)SAMPLING_INTERVAL_SEC * 1000) {
       previousSampleMillis = millis();
-      Serial.println("[Timing] NTP time not available, using millis() for sampling.");
+      Serial.println("[Timing] NTP unavailable, using millis() for sampling.");
       collectSensorData();
       if (bufferIndex >= DATA_BUFFER_SIZE) {
         Serial.println("[Timing] Buffer full via millis-based sampling, attempting POST.");
         postAveragedDataToGoogleSheet();
       }
     }
-    // Attempt quick re-sync without blocking too long
     if (WiFi.status() == WL_CONNECTED && !getLocalTime(&currentTime, 0)) {
       delay(200);
     }
     return;
   }
 
-  // Only sample once per NTP‑aligned minute: when tm_sec==0 AND lastSecond != 0
   if (currentTime.tm_sec == 0 && lastSecond != 0) {
-    previousSampleMillis = millis();
+    // At exact minute boundary, check if start of new 15-min window
+    if (currentTime.tm_min % REPORT_INTERVAL_MIN == 1) {
+      bufferIndex = 0; // reset buffer at minute 1 past quarter
+    }
     collectSensorData();
-    // When minute divisible by 15, POST averaged data
-    if (currentTime.tm_min % REPORTING_INTERVAL_MIN == 0) {
-      Serial.print("[Timing] NTP-Aligned: Triggering ");
-      Serial.print(REPORTING_INTERVAL_MIN);
-      Serial.print("-minute report. Current minute: ");
+    // Post only at quarter boundaries (minutes 0,15,30,45)
+    if (currentTime.tm_min % REPORT_INTERVAL_MIN == 0) {
+      Serial.print("[Timing] Quarter-hour reached: posting averaged data. Minute: ");
       Serial.println(currentTime.tm_min);
       postAveragedDataToGoogleSheet();
     }
   }
-
   lastSecond = currentTime.tm_sec;
 }
 
-// ==============================================================================================================================================
-// INITIALIZATION HELPERS
-// ==============================================================================================================================================
 void initializeDHTSensor() {
   dht.begin();
   Serial.println("[DHT] Sensor initialized.");
-  float initTemp = dht.readTemperature();
-  float initHumi = dht.readHumidity();
-  if (isnan(initTemp) || isnan(initHumi)) {
-    Serial.println("[DHT] Warning: Failed to read from DHT sensor during initialization.");
-  } else {
-    Serial.printf("[DHT] Initial test: T: %.2f C, H: %.2f %%\n", initTemp, initHumi);
-  }
+  float t = dht.readTemperature(); float h = dht.readHumidity();
+  if (isnan(t) || isnan(h)) Serial.println("[DHT] Warning: Failed initial read.");
+  else Serial.printf("[DHT] Initial test: T: %.2f C, H: %.2f %%\n", t, h);
 }
 
 void initializeWiFi() {
   Serial.println("[WiFi] Starting WiFiManager...");
-  wifiManager.setConnectTimeout(20);          // 20 s to connect to saved creds
-  wifiManager.setConfigPortalTimeout(180);     // 3 min portal timeout
-
+  wifiManager.setConnectTimeout(20);
+  wifiManager.setConfigPortalTimeout(180);
   if (!wifiManager.autoConnect(AP_CONFIG_SSID, AP_CONFIG_PASS)) {
     Serial.println("[WiFi] WiFiManager failed or portal timed out. Restarting...");
-    delay(3000);
-    ESP.restart();
+    delay(3000); ESP.restart();
   }
-  // Wait until connected
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(100);
-    yield();
-  }
-  delay(2000); // Extra stabilization delay
-  Serial.print("[WiFi] Connected via WiFiManager to: "); Serial.println(WiFi.SSID());
+  while (WiFi.status() != WL_CONNECTED) { delay(100); yield(); }
+  delay(2000);
+  Serial.print("[WiFi] Connected to: "); Serial.println(WiFi.SSID());
   Serial.print("[WiFi] IP Address: "); Serial.println(WiFi.localIP());
 }
 
 void initializeNTPTime() {
-  Serial.print("[NTP] Configuring time with server: "); Serial.println(NTP_SERVER_URL);
-  configTime(GMT_OFFSET_SECONDS, DAYLIGHT_OFFSET_SECONDS, NTP_SERVER_URL);
-
-  Serial.print("[NTP] Waiting for initial time sync...");
+  Serial.print("[NTP] Configuring time: "); Serial.println(NTP_SERVER_URL);
+  configTime(GMT_OFFSET_SECONDS, DAYLIGHT_OFFSET, NTP_SERVER_URL);
+  Serial.print("[NTP] Waiting for sync...");
   struct tm timeinfo;
-  unsigned long startAttemptTime = millis();
+  unsigned long start = millis();
   while (!getLocalTime(&timeinfo, 100)) {
-    if (millis() - startAttemptTime > NTP_SYNC_TIMEOUT_MS) {
-      Serial.println("\n[NTP] Failed to sync within timeout. Continuing without NTP.");
-      return;
-    }
-    Serial.print(".");
-    delay(NTP_RETRY_DELAY_MS);
-    yield();
+    if (millis() - start > NTP_TIMEOUT_MS) { Serial.println("\n[NTP] Timeout, proceeding without NTP."); return; }
+    Serial.print("."); delay(NTP_RETRY_DELAY); yield();
   }
   Serial.println("\n[NTP] Time synchronized.");
   printLocalTime("[NTP] Current time: ");
@@ -193,171 +163,75 @@ void initializeNTPTime() {
 
 void initializeArduinoCloud() {
   Serial.println("[Cloud] Initializing Arduino IoT Cloud...");
-  Serial.println("[Cloud] Ensure SECRET_SSID and SECRET_PASS in arduino_secrets.h match current Wi-Fi.");
-
-  initProperties();                   // Auto-generated: binds dhtTemp/dhtHumi
+  Serial.println("[Cloud] Ensure SECRET_SSID/PASS match WiFiManager network.");
+  initProperties();
   ArduinoCloud.begin(ArduinoIoTPreferredConnection);
   setDebugMessageLevel(3);
   ArduinoCloud.printDebugInfo();
-  Serial.println("[Cloud] Arduino IoT Cloud connection attempt underway.");
-  // Allow some time for MQTT handshake
-  unsigned long cloudStart = millis();
-  while (millis() - cloudStart < 2000) {
-    ArduinoCloud.update();
-    yield();
-  }
+  Serial.println("[Cloud] Connection attempt underway.");
+  unsigned long start = millis();
+  while (millis() - start < 2000) { ArduinoCloud.update(); yield(); }
 }
 
-// ==============================================================================================================================================
-// DATA COLLECTION & POSTING
-// ==============================================================================================================================================
 void collectSensorData() {
-  float humidity    = dht.readHumidity();
-  float temperature = dht.readTemperature();
-
-  float storedTemp = NAN;
-  float storedHumi = NAN;
-
-  // Validate temperature
-  if (!isnan(temperature) && temperature >= -40.0 && temperature <= 85.0) {
-    storedTemp = temperature;
-  } else {
-    Serial.println("[Sensor] Invalid temperature reading, storing NAN.");
-  }
-
-  // Validate humidity
-  if (!isnan(humidity) && humidity >= 0.0 && humidity <= 100.0) {
-    storedHumi = humidity;
-  } else {
-    Serial.println("[Sensor] Invalid humidity reading, storing NAN.");
-  }
-
-  // Update IoT Cloud variables only if valid
-  if (!isnan(storedHumi)) { dhtHumi = storedHumi; }
-  if (!isnan(storedTemp)) { dhtTemp = storedTemp; }
-
-  temperatureBuffer[bufferIndex] = storedTemp;
-  humidityBuffer[bufferIndex]    = storedHumi;
-
+  float h = dht.readHumidity();
+  float t = dht.readTemperature();
+  float sT = NAN, sH = NAN;
+  if (!isnan(t) && t >= -40.0 && t <= 85.0) sT = t; else Serial.println("[Sensor] Invalid temp.");
+  if (!isnan(h) && h >= 0.0 && h <= 100.0) sH = h; else Serial.println("[Sensor] Invalid hum.");
+  if (!isnan(sH)) dhtHumi = sH;
+  if (!isnan(sT)) dhtTemp = sT;
+  temperatureBuffer[bufferIndex] = sT;
+  humidityBuffer[bufferIndex]    = sH;
   printLocalTime("[Sensor] ");
-  Serial.printf("Sample [%2d/%2d] | Raw T: %6.2f C, H: %5.2f %% | Stored T: %6.2f, H: %5.2f\n",
-                bufferIndex + 1, DATA_BUFFER_SIZE,
-                temperature, humidity,
-                storedTemp, storedHumi);
+  Serial.printf("Sample [%2d/%2d] | Raw T: %.2f, H: %.2f | Stored T: %.2f, H: %.2f\n",
+                bufferIndex+1, DATA_BUFFER_SIZE, t, h, sT, sH);
   yield();
   bufferIndex++;
 }
 
 void postAveragedDataToGoogleSheet() {
-  if (bufferIndex == 0) {
-    Serial.println("[POST] No samples to average.");
-    return;
-  }
-
-  float sumTemp = 0.0f, sumHumi = 0.0f;
-  int validCount = 0;
-  Serial.println("[POST] --- Buffer Contents for Averaging ---");
-
-  for (int i = 0; i < bufferIndex; ++i) {
-    Serial.printf("  Buffer[%2d]: T=%6.2f, H=%5.2f %s\n",
-                  i,
-                  temperatureBuffer[i],
-                  humidityBuffer[i],
-                  (!isnan(temperatureBuffer[i]) && !isnan(humidityBuffer[i])) ? "(Valid)" : "(Invalid)"
-                  );
+  if (bufferIndex == 0) { Serial.println("[POST] No samples."); return; }
+  float sumT=0, sumH=0;
+  int vCount=0;
+  Serial.println("[POST] --- Buffer for Averaging ---");
+  for (int i=0; i<bufferIndex; i++) {
+    Serial.printf("  Buffer[%2d]: T=%.2f, H=%.2f %s\n", i, temperatureBuffer[i], humidityBuffer[i],
+                  (!isnan(temperatureBuffer[i]) && !isnan(humidityBuffer[i])) ? "(Valid)" : "(Invalid)");
     yield();
-    if (!isnan(temperatureBuffer[i]) && !isnan(humidityBuffer[i])) {
-      sumTemp += temperatureBuffer[i];
-      sumHumi += humidityBuffer[i];
-      validCount++;
-    }
+    if (!isnan(temperatureBuffer[i]) && !isnan(humidityBuffer[i])) { sumT+=temperatureBuffer[i]; sumH+=humidityBuffer[i]; vCount++; }
   }
-  Serial.println("[POST] --- End Buffer ---");
-  yield();
-
-  if (validCount == 0) {
-    Serial.println("[POST] No valid pairs, clearing buffer.");
-    for (int i = 0; i < bufferIndex; ++i) {
-      temperatureBuffer[i] = NAN;
-      humidityBuffer[i]    = NAN;
-    }
-    bufferIndex = 0;
-    return;
-  }
-
-  float avgTemp = sumTemp / validCount;
-  float avgHumi = sumHumi / validCount;
+  Serial.println("[POST] --- End Buffer ---"); yield();
+  if (vCount == 0) { Serial.println("[POST] No valid, clearing buffer."); for (int i=0;i<bufferIndex;i++){temperatureBuffer[i]=NAN; humidityBuffer[i]=NAN;} bufferIndex=0; return; }
+  float avgT=sumT/vCount, avgH=sumH/vCount;
   printLocalTime("[POST] ");
-  Serial.printf("Calculated AVG from %d valid of %d samples -> T: %.2f C | H: %.2f %%\n", validCount, bufferIndex, avgTemp, avgHumi);
+  Serial.printf("Avg from %d valid of %d -> T: %.2f, H: %.2f\n", vCount, bufferIndex, avgT, avgH);
   yield();
-
-  if (WiFi.status() != WL_CONNECTED) {
-    Serial.println("[POST] WiFi disconnected, skipping POST.");
-    return;
-  }
-
-  HTTPClient httpClient;
-  httpsClient.setInsecure();  // For simplicity; replace with CA cert in production
-
+  if (WiFi.status()!=WL_CONNECTED) { Serial.println("[POST] WiFi gone, skip."); return; }
+  HTTPClient http;
+  httpsClient.setInsecure();
   Serial.print("[POST] Connecting to: "); Serial.println(GOOGLE_SHEET_POST_URL);
-  bool httpInit = httpClient.begin(httpsClient, GOOGLE_SHEET_POST_URL);
-  yield();
-
-  if (!httpInit) {
-    Serial.println("[POST] HTTP begin() failed, data remains in buffer.");
-    return;
-  }
-
-  httpClient.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
-  httpClient.addHeader("Content-Type", "application/json; charset=utf-8");
-  httpClient.setTimeout(HTTP_POST_TIMEOUT_MS);
-
-  char payload[128];
-  snprintf(payload, sizeof(payload), "{\"temperature\":%.2f,\"humidity\":%.2f,\"mcu\":\"sputnik1\"}", avgTemp, avgHumi);
-
-  Serial.print("[POST] Sending JSON: "); Serial.println(payload);
-  yield();
-  int statusCode = httpClient.POST(payload);
-
-  if (statusCode > 0) {
-    Serial.printf("[POST] HTTP Status: %d\n", statusCode);
-    if (httpClient.getSize() > 0) {
-      String resp = httpClient.getString();
-      Serial.print("[POST] Response: "); Serial.println(resp);
-    }
-    if (statusCode == HTTP_CODE_OK || (statusCode >= 300 && statusCode < 400)) {
-      Serial.println("[POST] Success, clearing buffer.");
-      for (int i = 0; i < bufferIndex; ++i) {
-        temperatureBuffer[i] = NAN;
-        humidityBuffer[i]    = NAN;
-      }
-      bufferIndex = 0;
-    } else {
-      Serial.printf("[POST] Warning: Received code %d, keeping buffer for retry.\n", statusCode);
-    }
-  } else {
-    Serial.printf("[POST] Failed: %s (Code: %d)\n", httpClient.errorToString(statusCode).c_str(), statusCode);
-    Serial.println("[POST] Data remains in buffer for retry.");
-  }
-  httpClient.end();
-
-  Serial.printf("Free Heap after POST attempt: %u bytes\n", ESP.getFreeHeap());
-  yield();
+  bool initOk = http.begin(httpsClient, GOOGLE_SHEET_POST_URL);
+  yield(); if (!initOk) { Serial.println("[POST] HTTP begin failed, keep buffer."); return; }
+  http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
+  http.addHeader("Content-Type","application/json; charset=utf-8");
+  http.setTimeout(HTTP_POST_TIMEOUT_MS);
+  char payload[128]; snprintf(payload, sizeof(payload), "{\"temperature\":%.2f,\"humidity\":%.2f,\"mcu\":\"sputnik1\"}", avgT, avgH);
+  Serial.print("[POST] Sending: "); Serial.println(payload); yield();
+  int code=http.POST(payload);
+  if (code>0) {
+    Serial.printf("[POST] HTTP %d\n", code);
+    if (http.getSize()>0) { String r=http.getString(); Serial.print("[POST] Resp: "); Serial.println(r); }
+    if (code==HTTP_CODE_OK || (code>=300&&code<400)) { Serial.println("[POST] Success, clearing buffer."); for(int i=0;i<bufferIndex;i++){temperatureBuffer[i]=NAN; humidityBuffer[i]=NAN;} bufferIndex=0; }
+    else { Serial.printf("[POST] Warn code %d, keep buffer.\n", code); }
+  } else { Serial.printf("[POST] Fail: %s (Code: %d)\n", http.errorToString(code).c_str(), code); Serial.println("[POST] Keep buffer."); }
+  http.end(); Serial.printf("Free Heap after POST: %u bytes\n", ESP.getFreeHeap()); yield();
 }
 
-// ==============================================================================================================================================
-// UTILITY FUNCTIONS
-// ==============================================================================================================================================
 void printLocalTime(const char* prefix) {
-  struct tm timeinfo;
-  if (getLocalTime(&timeinfo, 0)) {
-    Serial.print(prefix);
-    char buf[64];
-    strftime(buf, sizeof(buf), "%A, %B %d %Y %H:%M:%S (%Z)", &timeinfo);
-    Serial.println(buf);
-  } else {
-    Serial.print(prefix);
-    Serial.println("Time not available.");
-  }
+  struct tm ti;
+  if (getLocalTime(&ti,0)) {
+    Serial.print(prefix); char b[64]; strftime(b,64,"%A, %B %d %Y %H:%M:%S (%Z)", &ti); Serial.println(b);
+  } else { Serial.print(prefix); Serial.println("Time N/A"); }
   yield();
 }
