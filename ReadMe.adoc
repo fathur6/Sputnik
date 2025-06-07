@@ -47,3 +47,77 @@ Payload format sent to Google Sheets every 15 minutes:
   "humidity": 64.00,
   "mcu": "sputnik1"
 }
+```
+
+== Sputnik ESP32U Portable MCU Kit
+
+**Sputnik** is a compact and modular ESP32-based microcontroller system equipped with a LiPo battery, OLED screen, and essential IoT components. Housed in a neat container, Sputnik is ideal for quick sketch testing, WiFi diagnostics, and remote deployment for cloud-based applications like Arduino IoT Cloud or Google Sheets logging.
+
+---
+
+## 🧰 Features
+
+- 🔧 **ESP32U Dev Board** with external antenna for stronger signal
+- 🔋 **LiPo-powered** via 18650 battery with TP4056 charging circuit
+- 🌡️ **DHT sensor** (temperature + humidity)
+- 📺 **OLED screen** (I2C) for data display
+- 🔌 **Accessible USB** for programming and debugging
+- 🧪 **Expandable** — add more sensors or modules easily
+- 🔁 Supports both **uplink/downlink** testing and cloud comms
+
+---
+
+## 🧪 Use Cases
+
+- Rapid field testing for Arduino sketches
+- Verifying WiFi connectivity in low-signal areas
+- Sending data to Google Sheets or RESTful endpoints
+- Local monitoring with OLED
+- Ideal for student labs and prototype development
+
+---
+
+## 📦 Components
+
+| Component       | Description                     |
+|----------------|---------------------------------|
+| ESP32U Dev Board | External antenna version       |
+| OLED Display     | I2C interface, 0.96"           |
+| DHT Sensor       | DHT11 or DHT22 supported       |
+| TP4056 Module    | Li-ion battery charger         |
+| 18650 Battery    | Removable, rechargeable power  |
+| Slide Switch     | Main power on/off              |
+| ABS Box          | Transparent enclosure          |
+
+---
+
+## 🚀 Getting Started
+
+1. Clone the repository and open `.ino` sketch in Arduino IDE.
+2. Install required libraries:
+   - `DHT sensor library`
+   - `Adafruit Unified Sensor`
+   - `OneWire` and `DallasTemperature` (if using DS18B20)
+   - `Adafruit SSD1306` (if using OLED)
+3. Upload to ESP32U and power via USB or battery.
+4. Use Serial Monitor to view logs.
+
+---
+
+## 📸 Device Preview
+
+| Closed | Internal View |
+|--------|---------------|
+| ![Boxed View](docs/sputnik-closed.jpg) | ![Inside View](docs/sputnik-open.jpg) |
+
+---
+
+## 🧑‍🔬 Maintainer
+
+Developed by **Aman & Anna** under the **DAFCON Initiative** for advancing smart agricultural & environmental IoT solutions.
+
+---
+
+## 🗂️ License
+
+MIT – feel free to modify and adapt for your own IoT adventures 🚀
